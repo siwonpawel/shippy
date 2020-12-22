@@ -6,6 +6,7 @@ import (
 
 	micro "github.com/micro/go-micro/v2"
 	pb "github.com/siwonpawel/shippy/shippy-service-consignment/proto/consignment"
+	vesselProto "github.com/siwonpawel/shippy/shippy-service-vessel/proto/vessel"
 )
 
 const (
@@ -34,10 +35,21 @@ func (repo *Repository) GetAll() []*pb.Consignment {
 }
 
 type consignmentService struct {
-	repo repository
+	repo         repository
+	vesselClient vesselProto.VesselService
 }
 
 func (s *consignmentService) CreateConsignment(ctx context.Context, req *pb.Consignment, res *pb.Response) error {
+
+	vesselResponse, err := s.vesselClient.FindAvailable(context.Background(), &vesselProto.Specification{
+		MaxWeight: req.Weight,
+		Capacity:  int32(len(req.Containers)),
+	})
+	log.Printf("Found vessel: %s\n", vesselResponse.Vessel.Name)
+	if err != nil {
+		return err
+	}
+
 	consignment, err := s.repo.Create(req)
 	if err != nil {
 		return err
@@ -64,8 +76,10 @@ func main() {
 		micro.Name("shippy.service.consignment"),
 	)
 
+	vesselClient := vesselProto.NewVesselService("shippy.service.vessel", service.Client())
+
 	service.Init()
-	if err := pb.RegisterShippingServiceHandler(service.Server(), &consignmentService{repo}); err != nil {
+	if err := pb.RegisterShippingServiceHandler(service.Server(), &consignmentService{repo, vesselClient}); err != nil {
 		log.Panic(err)
 	}
 
