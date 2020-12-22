@@ -10,7 +10,7 @@ ENV GO111MODULE=on
 
 COPY . .
 
-RUN ls && cd shippy-service-vessel && go mod download
+RUN cd shippy-service-vessel && go mod download
 RUN cd shippy-service-vessel && CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o shippy-service-vessel
 
 # Run container
